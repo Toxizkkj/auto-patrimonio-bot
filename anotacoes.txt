@@ -1,0 +1,3 @@
+patrimonio 5011 desktop dell optiplex setor ti unidade matriz
+patrimonio 5012 monitor lg 24 polegadas setor financeiro filial
+patrimonio 5013 impressora hp setor rh matriz

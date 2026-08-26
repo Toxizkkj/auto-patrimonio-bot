@@ -31,14 +31,12 @@ def extrair_dados_com_ia(texto_anotacoes):
         contents=prompt
     )
     
-    # Limpa possíveis marcações de markdown retornadas
     texto_limpo = response.text.replace("```json", "").replace("```", "").strip()
     return json.loads(texto_limpo)
 
 def preencher_sistema(lista_itens, url_sistema):
     print("Iniciando navegador para preenchimento...")
     with sync_playwright() as p:
-        # headless=False para você ver o robô preenchendo a tela
         browser = p.chromium.launch(headless=False)
         page = browser.new_page()
 
@@ -47,7 +45,7 @@ def preencher_sistema(lista_itens, url_sistema):
         for item in lista_itens:
             print(f"Cadastrando patrimônio: {item['patrimonio']}...")
             
-            # --- AJUSTAR SELETORES QUANDO ESTIVER NO PC DA EMPRESA ---
+            # Ajustar quando estiver no PC da empresa
             page.fill("input[name='patrimonio']", item['patrimonio'])
             
             if item['marca']:
@@ -55,29 +53,34 @@ def preencher_sistema(lista_itens, url_sistema):
             if item['modelo']:
                 page.fill("input[name='modelo']", item['modelo'])
 
-            # Para campos do tipo Select / Dropdown
             page.select_option("select[name='tipo']", label=item['tipo'])
             page.select_option("select[name='unidade']", label=item['unidade'])
             page.select_option("select[name='setor']", label=item['setor'])
 
-            # Botão de salvar
             page.click("button#btn-salvar")
-            page.wait_for_timeout(1000) # Espera 1 segundo entre os cadastros
+            page.wait_for_timeout(1000)
 
         print("Todos os equipamentos foram cadastrados com sucesso!")
         browser.close()
 
 if __name__ == "__main__":
-    # Exemplo de anotação rápida que você poderá passar
-    anotacoes_exemplo = """
-    patrimonio 4501 desktop dell optiplex setor ti unidade matriz,
-    patrimonio 4502 monitor lg setor rh unidade filial,
-    patrimonio 4503 impressora setor financeiro unidade matriz
-    """
-    
-    # 1. Converte anotações em dados estruturados
-    dados_processados = extrair_dados_com_ia(anotacoes_exemplo)
+    caminho_arquivo = "anotacoes.txt"
+
+    if not os.path.exists(caminho_arquivo):
+        print(f"Erro: O arquivo '{caminho_arquivo}' não foi encontrado!")
+        print("Crie o arquivo 'anotacoes.txt' com suas anotações antes de rodar.")
+        exit(1)
+
+    with open(caminho_arquivo, "r", encoding="utf-8") as f:
+        anotacoes_do_dia = f.read().strip()
+
+    if not anotacoes_do_dia:
+        print("Aviso: O arquivo 'anotacoes.txt' está vazio.")
+        exit(0)
+
+    print("Lendo anotações do arquivo 'anotacoes.txt'...")
+    dados_processados = extrair_dados_com_ia(anotacoes_do_dia)
     print("Dados extraídos com sucesso:\n", json.dumps(dados_processados, indent=2, ensure_ascii=False))
 
-    # 2. Quando estiver na empresa, descomente a linha abaixo e coloque a URL real do sistema:
-    # preencher_sistema(dados_processados, "http://sistema-interno.suaempresa/patrimonio")
+    # Quando estiver na empresa, descomente a linha abaixo:
+    # preencher_sistema(dados_processados, "http://url-do-sistema")
