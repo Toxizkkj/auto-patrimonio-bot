@@ -1,8 +1,50 @@
-# Auto Patrimônio Bot (Gemini + Playwright)
+---
 
-Automação inteligente para transcrição de anotações desestruturadas de inventário de TI e cadastro automático em sistema web interno.
+### Projeto 2: Microserviço de Transações Financeiras (Backend / API)
 
-## Tecnologias
-- **Python 3.11+**
-- **Google Gemini API (gemini-3.6-flash)** para Parsing e NLP
-- **Playwright** para automação de formulários web
+```markdown
+#  Transaction Authorization Engine — FastAPI & Clean Architecture
+
+Microserviço de autorização e liquidação de transações financeiras com foco em concorrência, idempotência e integridade transacional.
+
+---
+
+##  Visão Geral
+Simulador de core banking para processamento de débitos/créditos em contas correntes, garantindo consistência ACID, validação de saldos e controle de idempotência para mitigar requisições duplicadas (*double-spending*).
+
+---
+
+##  Tecnologias & Padrões
+* **Linguagem/Framework**: Python 3.12 / FastAPI
+* **Banco de Dados**: PostgreSQL + SQLAlchemy (Async)
+* **Controle de Idempotência**: Redis (Locks distribuídos / Idempotency-Key)
+* **Testes & Qualidade**: Pytest (Unitários e Integração), Black, Flake8
+* **Containerização**: Docker & Docker Compose
+
+---
+
+##  Padrões de Arquitetura
+* **Domain-Driven Design (DDD) & Clean Architecture**: Separação clara entre Domínio, Casos de Uso (Application) e Infraestrutura.
+* **Locks Otimistas/Pessimistas**: Tratamento de concorrência em atualizações de saldo na camada de banco.
+* **Middlewares de Logging Estruturado**: Rastreabilidade por `correlation-id` em cada request.
+
+---
+
+##  Endpoints Principais
+
+| Método | Rota | Descrição |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/accounts` | Criação de conta corrente |
+| `GET` | `/api/v1/accounts/{id}/balance` | Consulta de saldo atual |
+| `POST` | `/api/v1/transactions/authorize` | Autorização de débito/transferência (Requer `Idempotency-Key`) |
+
+---
+
+##  Como Rodar Localmente & Testes
+
+```bash
+# Subir aplicação e banco via Docker
+docker-compose up --build -d
+
+# Executar suite de testes com cobertura
+docker-compose run web pytest --cov=app tests/
