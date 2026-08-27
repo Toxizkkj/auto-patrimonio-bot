@@ -1,42 +1,29 @@
-#  Transaction Authorization Engine — FastAPI & Clean Architecture
+```markdown
+#  Asset Management System — Controle de Patrimônio e Equipamentos de TI
 
-Microserviço de autorização e liquidação de transações financeiras com foco em concorrência, idempotência e integridade transacional.
+Aplicação para rastreamento, inventário e controle de ciclo de vida de ativos de hardware e infraestrutura de TI.
 
----
+##  Problema de Negócio
+A falta de centralização no controle de periféricos, componentes e máquinas alocadas em setores corporativos gerava divergências de inventário, perda de histórico de manutenção e dificuldade em auditorias de equipamentos.
 
-##  Visão Geral
-Simulador de core banking para processamento de débitos e créditos em contas correntes, garantindo consistência ACID, validação de saldos e controle de idempotência para mitigar requisições duplicadas (*double-spending*).
+##  Solução
+Sistema estruturado para cadastro, categorização e rastreio de status de ativos de TI (computadores, periféricos, peças e suprimentos), permitindo vincular responsáveis, setores e histórico de movimentações.
 
----
+##  Tecnologias & Arquitetura
+* **Backend / Lógica**: Python / Banco de Dados Relacional (SQLite / PostgreSQL)
+* **Modelagem de Dados**: Entidades de Ativos, Categorias, Movimentações e Usuários
+* **Camada de Interface/API**: Interface modular para CRUD e relatórios de auditoria
 
-##  Tecnologias & Padrões
-* **Linguagem & Framework**: Python 3.12 / FastAPI
-* **Banco de Dados**: PostgreSQL + SQLAlchemy (Async)
-* **Controle de Idempotência**: Redis (Locks distribuídos / Idempotency-Key)
-* **Testes & Qualidade**: Pytest (Unitários e Integração), Black, Flake8
-* **Containerização**: Docker & Docker Compose
+##  Funcionalidades Principais
+* **Cadastro de Ativos**: Registro detalhado por número de série, etiqueta de patrimônio, especificações e estado de conservação.
+* **Histórico de Movimentação**: Rastreabilidade de transferências entre colaboradores e setores.
+* **Controle de Status**: Monitoramento de itens em uso, manutenção, reserva ou descarte.
+* **Busca e Filtros Rápidos**: Consulta por setor, etiqueta de patrimônio ou responsável.
 
----
+##  Como Executar
 
-##  Padrões de Arquitetura
-* **Domain-Driven Design (DDD) & Clean Architecture**: Separação clara entre Domínio, Casos de Uso (Application) e Infraestrutura.
-* **Controle de Concorrência**: Tratamento de consistência em atualizações de saldo na camada de banco de dados.
-* **Middlewares de Logging Estruturado**: Rastreabilidade com `correlation-id` em cada ciclo de requisição.
-
----
-
-##  Endpoints Principais
-
-| Método | Rota | Descrição |
-| :--- | :--- | :--- |
-| `POST` | `/api/v1/accounts` | Criação de conta corrente |
-| `GET` | `/api/v1/accounts/{id}/balance` | Consulta de saldo atual |
-| `POST` | `/api/v1/transactions/authorize` | Autorização de débito/transferência (Requer `Idempotency-Key`) |
-
----
-
-##  Como Rodar Localmente & Testes
-
-### 1. Subir aplicação e banco via Docker
-```bash
-docker-compose up --build -d
+1. **Clonar e instalar dependências**:
+   ```bash
+   git clone [https://github.com/SEU_USUARIO/nome-do-repo-patrimonio.git](https://github.com/SEU_USUARIO/nome-do-repo-patrimonio.git)
+   cd nome-do-repo-patrimonio
+   pip install -r requirements.txt
