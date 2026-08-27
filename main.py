@@ -1,86 +1,151 @@
 import os
-import json
-from google import genai
+import re
 from playwright.sync_api import sync_playwright
 
-def extrair_dados_com_ia(texto_anotacoes):
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("Chave GEMINI_API_KEY não encontrada nas variáveis de ambiente.")
-
-    client = genai.Client(api_key=api_key)
-
-    prompt = f"""
-    Você é um assistente de inventário de TI. Extraia os itens de patrimônio do texto abaixo e retorne ESTRITAMENTE um JSON no formato de lista de objetos, sem blocos de código ou markdown adicional.
-    
-    Campos por objeto:
-    - patrimonio (string com o número)
-    - tipo (Desktop, Monitor, Impressora, Notebook, etc.)
-    - marca (string ou vazio "" se não informado)
-    - modelo (string ou vazio "" se não informado)
-    - unidade (string correspondente)
-    - setor (string correspondente)
-
-    Texto bruto:
-    {texto_anotacoes}
+def parse_arquivo_patrimonio(caminho_arquivo):
     """
+    Lê o arquivo TXT e organiza os itens respeitando os blocos de setores demarcados por '- - -'.
+    """
+    if not os.path.exists(caminho_arquivo):
+        raise FileNotFoundError(f"Arquivo '{caminho_arquivo}' não encontrado.")
 
-    print("Processando anotações com o Gemini...")
-    response = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=prompt
-    )
-    
-    texto_limpo = response.text.replace("```json", "").replace("```", "").strip()
-    return json.loads(texto_limpo)
+    with open(caminho_arquivo, "r", encoding="utf-8") as f:
+        linhas = f.readlines()
 
-def preencher_sistema(lista_itens, url_sistema):
-    print("Iniciando navegador para preenchimento...")
+    setor_atual = None
+    equipamentos = []
+
+    for num_linha, linha in enumerate(linhas, start=1):
+        texto = linha.strip()
+        if not texto:
+            continue
+
+        # Detecta a troca de setor (ex: "Comercial - - -", "DP ---")
+        if re.search(r"-\s*-\s*-", texto):
+            setor_limpo = re.split(r"-\s*-\s*-", texto)[0].strip()
+            setor_atual = setor_limpo
+            continue
+
+        # Processa o equipamento (ex: "Desktop - 1234")
+        if "-" in texto:
+            partes = texto.split("-", 1)
+            nome_equip = partes[0].strip()
+            codigo_patrimonio = partes[1].strip()
+
+            if not setor_atual:
+                print(f"[Aviso Linha {num_linha}] Equipamento '{texto}' ignorado: nenhum setor definido antes dele.")
+                continue
+
+            equipamentos.append({
+                "setor": setor_atual,
+                "nome": nome_equip,
+                "codigo": codigo_patrimonio
+            })
+
+    return equipamentos
+
+def cadastrar_equipamentos_no_sistema(lista_equipamentos, url_sistema, usuario, senha):
+    print(f"Total de equipamentos para cadastrar: {len(lista_equipamentos)}")
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
         page = browser.new_page()
 
+        # 1. Login no Sistema
+        print("Acessando sistema e efetuando login...")
         page.goto(url_sistema)
+        page.fill("#email", usuario)
+        page.fill("#senha", senha)
+        page.click("body > div.login-container > div > form > button")
+        page.wait_for_load_state("networkidle")
 
-        for item in lista_itens:
-            print(f"Cadastrando patrimônio: {item['patrimonio']}...")
-            
-            # Ajustar quando estiver no PC da empresa
-            page.fill("input[name='patrimonio']", item['patrimonio'])
-            
-            if item['marca']:
-                page.fill("input[name='marca']", item['marca'])
-            if item['modelo']:
-                page.fill("input[name='modelo']", item['modelo'])
+        # 2. Tratamento do Modal de Pendências (Fecha caso exista)
+        try:
+            btn_fechar_pendencias = page.locator("#modal-pendencias > div > div.portal-actions > button, #modal-pendencias button:has-text('Fechar')")
+            if btn_fechar_pendencias.is_visible(timeout=3000):
+                print("Modal de pendências detectado. Fechando...")
+                btn_fechar_pendencias.click()
+                page.wait_for_timeout(500)
+        except Exception:
+            pass  # Se não houver modal, continua normalmente
 
-            page.select_option("select[name='tipo']", label=item['tipo'])
-            page.select_option("select[name='unidade']", label=item['unidade'])
-            page.select_option("select[name='setor']", label=item['setor'])
+        # 3. Acesso ao Módulo de Chamados / TI
+        print("Acessando o sistema de Chamados...")
+        page.click("body > section > div > a.system-link.chamados > h2") 
+        page.wait_for_load_state("networkidle")
 
-            page.click("button#btn-salvar")
+        # 4. Navegação: Menu Equipamentos
+        print("Navegando para Equipamentos...")
+        page.click("#appSidebar > ul > li:nth-child(7) > a > span")  
+        page.wait_for_load_state("networkidle")
+
+        # 5. Loop de Cadastro
+        for indice, item in enumerate(lista_equipamentos, start=1):
+            print(f"[{indice}/{len(lista_equipamentos)}] Cadastrando: {item['nome']} (Cod: {item['codigo']}) no setor [{item['setor']}]...")
+
+            # 5.1 Clica em "Novo Equipamento"
+            page.click("#btnNovoEq")
+            page.wait_for_timeout(500)
+
+            # 5.2 Preenche Código e Nome
+            page.fill("#eq_codigo", item["codigo"])
+            page.fill("#eq_nome", item["nome"])
+            page.wait_for_timeout(200)
+
+            # 5.3 Seleciona Local / Cliente: "São Geraldo (Matriz)" via JavaScript direto
+            page.evaluate("""() => {
+                const selectLocal = document.querySelector('#eq_local');
+                if (selectLocal) {
+                    for (let opt of selectLocal.options) {
+                        if (opt.text.includes('São Geraldo (Matriz)')) {
+                            selectLocal.value = opt.value;
+                            selectLocal.dispatchEvent(new Event('change', { bubbles: true }));
+                            selectLocal.dispatchEvent(new Event('input', { bubbles: true }));
+                            break;
+                        }
+                    }
+                }
+            }""")
+            page.wait_for_timeout(400)
+
+            # 5.4 Seleciona Setor via JavaScript direto
+            setor_alvo = item["setor"]
+            page.evaluate("""(setor) => {
+                const selectSetor = document.querySelector('#eq_setor');
+                if (selectSetor) {
+                    for (let opt of selectSetor.options) {
+                        if (opt.text.trim().toLowerCase() === setor.trim().toLowerCase()) {
+                            selectSetor.value = opt.value;
+                            selectSetor.dispatchEvent(new Event('change', { bubbles: true }));
+                            selectSetor.dispatchEvent(new Event('input', { bubbles: true }));
+                            break;
+                        }
+                    }
+                }
+            }""", setor_alvo)
+            page.wait_for_timeout(400)
+
+            # 5.5 Clica em Gravar
+            page.click("#btnGravarEq")
             page.wait_for_timeout(1000)
 
         print("Todos os equipamentos foram cadastrados com sucesso!")
         browser.close()
 
 if __name__ == "__main__":
-    caminho_arquivo = "anotacoes.txt"
+    ARQUIVO_TXT = "anotacoes.txt"
+    
+    # URL e Credenciais
+    URL_SISTEMA = "http://192.168.0.253"
+    USUARIO = "yurijaciel2@gmail.com"
+    SENHA = "180725"
 
-    if not os.path.exists(caminho_arquivo):
-        print(f"Erro: O arquivo '{caminho_arquivo}' não foi encontrado!")
-        print("Crie o arquivo 'anotacoes.txt' com suas anotações antes de rodar.")
-        exit(1)
+    try:
+        dados_processados = parse_arquivo_patrimonio(ARQUIVO_TXT)
+        if not dados_processados:
+            print("Nenhum registro válido encontrado para envio.")
+            exit(0)
 
-    with open(caminho_arquivo, "r", encoding="utf-8") as f:
-        anotacoes_do_dia = f.read().strip()
-
-    if not anotacoes_do_dia:
-        print("Aviso: O arquivo 'anotacoes.txt' está vazio.")
-        exit(0)
-
-    print("Lendo anotações do arquivo 'anotacoes.txt'...")
-    dados_processados = extrair_dados_com_ia(anotacoes_do_dia)
-    print("Dados extraídos com sucesso:\n", json.dumps(dados_processados, indent=2, ensure_ascii=False))
-
-    # Quando estiver na empresa, descomente a linha abaixo:
-    # preencher_sistema(dados_processados, "http://url-do-sistema")
+        cadastrar_equipamentos_no_sistema(dados_processados, URL_SISTEMA, USUARIO, SENHA)
+    except Exception as e:
+        print(f"Erro durante a execução: {e}")

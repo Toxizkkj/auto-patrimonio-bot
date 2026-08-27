@@ -1,3 +1,107 @@
-patrimonio 5011 desktop dell optiplex setor ti unidade matriz
-patrimonio 5012 monitor lg 24 polegadas setor financeiro filial
-patrimonio 5013 impressora hp setor rh matriz
+DP - - -
+
+Monitor - 6095
+Monitor  - 6013
+
+Desktop - 2039
+Monitor - 5051
+Monitor - 6078
+
+Desktop - 5032
+Monitor - 4523
+
+Desktop - 0678
+Monitor - 7168
+
+Desktop - 6035
+Monitor - 6037
+
+Desktop - 2847
+Monitor - 0622
+
+RH - - -
+
+Desktop - 7194
+Monitor - 7169
+Roteador - 7152
+
+Desktop - 7146
+Monitor - 7130
+Monitor - 7162
+
+Desktop - 6072
+Monitor - 7151
+No Break - 7180
+
+Notebook - 7181
+
+QSMS - - -
+
+Desktop - 0567
+Monitor - 7177
+
+Desktop - 6046
+Monitor - 0612
+Monitor - 2503
+
+Notebook - 0696
+Monitor - 7179
+
+Desktop - 7182
+Monitor - 7183
+Switch - 7184
+
+Desktop - 6001
+Monitor - 6039
+Monitor - 6040
+
+Desktop - 0687
+Monitor - 0599
+
+Desktop - 6091
+Monitor - 6090
+Monitor - 6021
+
+No Break - 5075
+
+Logística - - -
+
+Switch - 7143
+Desktop - 6092
+Notebook - Ana Beatris
+Monitor - 6031
+
+Desktop - 6094
+Monitor - 6093
+
+Notebook - Tassio
+Monitor - 6089
+
+Desktop - 2011
+Monitor - 2351
+Confecção - - - 
+
+Notebook - Débora 
+Monitor - 7187
+
+Desktop - 4454
+Monitor - 2633
+
+Desktop - 7178
+Monitor - 6050
+Monitor - 6014
+Roteador - 7185
+
+RFID - - -
+
+Desktop - 6064
+Monitor - 6065
+No break - 2139
+
+Switch - 7191
+Roteador - 7189
+No Break - 7145
+Desktop - 7193
+Monitor - 6061
+
+No Break - 7190
