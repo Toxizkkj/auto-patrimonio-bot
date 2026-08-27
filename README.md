@@ -1,21 +1,16 @@
----
-
-### Projeto 2: Microserviço de Transações Financeiras (Backend / API)
-
-```markdown
-# 💳 Transaction Authorization Engine — FastAPI & Clean Architecture
+#  Transaction Authorization Engine — FastAPI & Clean Architecture
 
 Microserviço de autorização e liquidação de transações financeiras com foco em concorrência, idempotência e integridade transacional.
 
 ---
 
-## 📌 Visão Geral
-Simulador de core banking para processamento de débitos/créditos em contas correntes, garantindo consistência ACID, validação de saldos e controle de idempotência para mitigar requisições duplicadas (*double-spending*).
+##  Visão Geral
+Simulador de core banking para processamento de débitos e créditos em contas correntes, garantindo consistência ACID, validação de saldos e controle de idempotência para mitigar requisições duplicadas (*double-spending*).
 
 ---
 
-## 🛠️ Tecnologias & Padrões
-* **Linguagem/Framework**: Python 3.12 / FastAPI
+##  Tecnologias & Padrões
+* **Linguagem & Framework**: Python 3.12 / FastAPI
 * **Banco de Dados**: PostgreSQL + SQLAlchemy (Async)
 * **Controle de Idempotência**: Redis (Locks distribuídos / Idempotency-Key)
 * **Testes & Qualidade**: Pytest (Unitários e Integração), Black, Flake8
@@ -23,14 +18,14 @@ Simulador de core banking para processamento de débitos/créditos em contas cor
 
 ---
 
-## 🏗️ Padrões de Arquitetura
+##  Padrões de Arquitetura
 * **Domain-Driven Design (DDD) & Clean Architecture**: Separação clara entre Domínio, Casos de Uso (Application) e Infraestrutura.
-* **Locks Otimistas/Pessimistas**: Tratamento de concorrência em atualizações de saldo na camada de banco.
-* **Middlewares de Logging Estruturado**: Rastreabilidade por `correlation-id` em cada request.
+* **Controle de Concorrência**: Tratamento de consistência em atualizações de saldo na camada de banco de dados.
+* **Middlewares de Logging Estruturado**: Rastreabilidade com `correlation-id` em cada ciclo de requisição.
 
 ---
 
-## 🚦 Endpoints Principais
+##  Endpoints Principais
 
 | Método | Rota | Descrição |
 | :--- | :--- | :--- |
@@ -40,17 +35,8 @@ Simulador de core banking para processamento de débitos/créditos em contas cor
 
 ---
 
-## 🧪 Como Rodar Localmente & Testes
+##  Como Rodar Localmente & Testes
 
+### 1. Subir aplicação e banco via Docker
 ```bash
-# Subir aplicação e banco via Docker
 docker-compose up --build -d
-
-# Executar suite de testes com cobertura
-docker-compose run web pytest --cov=app tests/
-```bash
-# Subir aplicação e banco via Docker
-docker-compose up --build -d
-
-# Executar suite de testes com cobertura
-docker-compose run web pytest --cov=app tests/
