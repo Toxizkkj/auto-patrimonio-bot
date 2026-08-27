@@ -1,4 +1,4 @@
-```markdown
+
 #  Asset Management System — Controle de Patrimônio e Equipamentos de TI
 
 Aplicação para rastreamento, inventário e controle de ciclo de vida de ativos de hardware e infraestrutura de TI.
