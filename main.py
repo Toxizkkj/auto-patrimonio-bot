@@ -4,7 +4,9 @@ from playwright.sync_api import sync_playwright
 
 def parse_arquivo_patrimonio(caminho_arquivo):
     """
-    Lê o arquivo TXT e organiza os itens respeitando os blocos de setores demarcados por '- - -'.
+    Lê o arquivo TXT e organiza os itens respeitando:
+    Setor - - -
+    Nome - Patrimonio - Marca - Modelo
     """
     if not os.path.exists(caminho_arquivo):
         raise FileNotFoundError(f"Arquivo '{caminho_arquivo}' não encontrado.")
@@ -20,17 +22,20 @@ def parse_arquivo_patrimonio(caminho_arquivo):
         if not texto:
             continue
 
-        # Detecta a troca de setor (ex: "Comercial - - -", "DP ---")
+        # Detecta troca de setor (ex: "Comercial - - -", "DP ---")
         if re.search(r"-\s*-\s*-", texto):
             setor_limpo = re.split(r"-\s*-\s*-", texto)[0].strip()
             setor_atual = setor_limpo
             continue
 
-        # Processa o equipamento (ex: "Desktop - 1234")
+        # Processa o equipamento com múltiplos campos separados por hífen
         if "-" in texto:
-            partes = texto.split("-", 1)
-            nome_equip = partes[0].strip()
-            codigo_patrimonio = partes[1].strip()
+            partes = [p.strip() for p in texto.split("-")]
+            
+            nome_equip = partes[0] if len(partes) > 0 else ""
+            codigo_patrimonio = partes[1] if len(partes) > 1 else ""
+            marca_equip = partes[2] if len(partes) > 2 else ""
+            modelo_equip = partes[3] if len(partes) > 3 else ""
 
             if not setor_atual:
                 print(f"[Aviso Linha {num_linha}] Equipamento '{texto}' ignorado: nenhum setor definido antes dele.")
@@ -39,10 +44,86 @@ def parse_arquivo_patrimonio(caminho_arquivo):
             equipamentos.append({
                 "setor": setor_atual,
                 "nome": nome_equip,
-                "codigo": codigo_patrimonio
+                "codigo": codigo_patrimonio,
+                "marca": marca_equip,
+                "modelo": modelo_equip
             })
 
     return equipamentos
+
+def criar_novo_setor(page, nome_setor):
+    """Fecha o modal de equipamento, adiciona o novo setor e fecha a listagem."""
+    print(f"⚙️ Setor '{nome_setor}' não encontrado. Criando novo setor no sistema...")
+    
+    # 1. Fecha o modal de Novo Equipamento
+    page.click("#btnFecharEq")
+    page.wait_for_timeout(400)
+
+    # 2. Clica em adicionar setor
+    page.click("#btnAdicionarSetorEq")
+    page.wait_for_timeout(500)
+
+    # 3. Clica no botão de novo setor dentro do modal
+    page.click("#btnNovoSetorEq")
+    page.wait_for_timeout(400)
+
+    # 4. Escreve o nome do setor
+    page.fill("#setorNome", nome_setor)
+    page.wait_for_timeout(200)
+
+    # 5. Salva o setor
+    page.click("#modalSetor > div.tec-modal-foot > button.btn.btn-success.tec-btn-sm")
+    page.wait_for_timeout(800)
+
+    # 6. Fecha a modal de lista de setores
+    page.click("#modalListaSetores > div.tec-modal-foot > button")
+    page.wait_for_timeout(500)
+    print(f"✅ Setor '{nome_setor}' cadastrado com sucesso!")
+
+def preencher_dados_formulario(page, item):
+    """Preenche os campos de equipamento e seleciona cliente e setor via JS."""
+    # Preenche Código, Nome, Marca e Modelo
+    page.fill("#eq_codigo", item["codigo"])
+    page.fill("#eq_nome", item["nome"])
+    
+    if item["marca"]:
+        page.fill("#eq_marca", item["marca"])
+    if item["modelo"]:
+        page.fill("#eq_modelo", item["modelo"])
+        
+    page.wait_for_timeout(200)
+
+    # Seleciona Local / Cliente fixo: "São Geraldo (Matriz)"
+    page.evaluate("""() => {
+        const selectLocal = document.querySelector('#eq_local');
+        if (selectLocal) {
+            for (let opt of selectLocal.options) {
+                if (opt.text.includes('São Geraldo (Matriz)')) {
+                    selectLocal.value = opt.value;
+                    selectLocal.dispatchEvent(new Event('change', { bubbles: true }));
+                    selectLocal.dispatchEvent(new Event('input', { bubbles: true }));
+                    break;
+                }
+            }
+        }
+    }""")
+    page.wait_for_timeout(300)
+
+    # Seleciona o Setor
+    page.evaluate("""(setor) => {
+        const selectSetor = document.querySelector('#eq_setor');
+        if (selectSetor) {
+            for (let opt of selectSetor.options) {
+                if (opt.text.trim().toLowerCase() === setor.trim().toLowerCase()) {
+                    selectSetor.value = opt.value;
+                    selectSetor.dispatchEvent(new Event('change', { bubbles: true }));
+                    selectSetor.dispatchEvent(new Event('input', { bubbles: true }));
+                    break;
+                }
+            }
+        }
+    }""", item["setor"])
+    page.wait_for_timeout(300)
 
 def cadastrar_equipamentos_no_sistema(lista_equipamentos, url_sistema, usuario, senha):
     print(f"Total de equipamentos para cadastrar: {len(lista_equipamentos)}")
@@ -59,7 +140,7 @@ def cadastrar_equipamentos_no_sistema(lista_equipamentos, url_sistema, usuario, 
         page.click("body > div.login-container > div > form > button")
         page.wait_for_load_state("networkidle")
 
-        # 2. Tratamento do Modal de Pendências (Fecha caso exista)
+        # 2. Fecha modal de Pendências se existir
         try:
             btn_fechar_pendencias = page.locator("#modal-pendencias > div > div.portal-actions > button, #modal-pendencias button:has-text('Fechar')")
             if btn_fechar_pendencias.is_visible(timeout=3000):
@@ -67,63 +148,47 @@ def cadastrar_equipamentos_no_sistema(lista_equipamentos, url_sistema, usuario, 
                 btn_fechar_pendencias.click()
                 page.wait_for_timeout(500)
         except Exception:
-            pass  # Se não houver modal, continua normalmente
+            pass
 
         # 3. Acesso ao Módulo de Chamados / TI
         print("Acessando o sistema de Chamados...")
         page.click("body > section > div > a.system-link.chamados > h2") 
         page.wait_for_load_state("networkidle")
 
-        # 4. Navegação: Menu Equipamentos
+        # 4. Navegação para Equipamentos
         print("Navegando para Equipamentos...")
         page.click("#appSidebar > ul > li:nth-child(7) > a > span")  
         page.wait_for_load_state("networkidle")
 
         # 5. Loop de Cadastro
         for indice, item in enumerate(lista_equipamentos, start=1):
-            print(f"[{indice}/{len(lista_equipamentos)}] Cadastrando: {item['nome']} (Cod: {item['codigo']}) no setor [{item['setor']}]...")
+            print(f"[{indice}/{len(lista_equipamentos)}] Processando: {item['nome']} (Cod: {item['codigo']}) - Setor: [{item['setor']}]...")
 
-            # 5.1 Clica em "Novo Equipamento"
+            # 5.1 Abre modal Novo Equipamento
             page.click("#btnNovoEq")
             page.wait_for_timeout(500)
 
-            # 5.2 Preenche Código e Nome
-            page.fill("#eq_codigo", item["codigo"])
-            page.fill("#eq_nome", item["nome"])
-            page.wait_for_timeout(200)
-
-            # 5.3 Seleciona Local / Cliente: "São Geraldo (Matriz)" via JavaScript direto
-            page.evaluate("""() => {
-                const selectLocal = document.querySelector('#eq_local');
-                if (selectLocal) {
-                    for (let opt of selectLocal.options) {
-                        if (opt.text.includes('São Geraldo (Matriz)')) {
-                            selectLocal.value = opt.value;
-                            selectLocal.dispatchEvent(new Event('change', { bubbles: true }));
-                            selectLocal.dispatchEvent(new Event('input', { bubbles: true }));
-                            break;
-                        }
-                    }
-                }
-            }""")
-            page.wait_for_timeout(400)
-
-            # 5.4 Seleciona Setor via JavaScript direto
-            setor_alvo = item["setor"]
-            page.evaluate("""(setor) => {
+            # 5.2 Verifica se o setor já existe nas opções do #eq_setor
+            setor_existe = page.evaluate("""(setor) => {
                 const selectSetor = document.querySelector('#eq_setor');
-                if (selectSetor) {
-                    for (let opt of selectSetor.options) {
-                        if (opt.text.trim().toLowerCase() === setor.trim().toLowerCase()) {
-                            selectSetor.value = opt.value;
-                            selectSetor.dispatchEvent(new Event('change', { bubbles: true }));
-                            selectSetor.dispatchEvent(new Event('input', { bubbles: true }));
-                            break;
-                        }
+                if (!selectSetor) return false;
+                for (let opt of selectSetor.options) {
+                    if (opt.text.trim().toLowerCase() === setor.trim().toLowerCase()) {
+                        return true;
                     }
                 }
-            }""", setor_alvo)
-            page.wait_for_timeout(400)
+                return false;
+            }""", item["setor"])
+
+            # 5.3 Se não existir, executa o fluxo de criação de setor
+            if not setor_existe:
+                criar_novo_setor(page, item["setor"])
+                # Reabre o modal de Novo Equipamento
+                page.click("#btnNovoEq")
+                page.wait_for_timeout(500)
+
+            # 5.4 Preenche todos os campos
+            preencher_dados_formulario(page, item)
 
             # 5.5 Clica em Gravar
             page.click("#btnGravarEq")
@@ -135,7 +200,6 @@ def cadastrar_equipamentos_no_sistema(lista_equipamentos, url_sistema, usuario, 
 if __name__ == "__main__":
     ARQUIVO_TXT = "anotacoes.txt"
     
-    # URL e Credenciais
     URL_SISTEMA = "http://192.168.0.253"
     USUARIO = "yurijaciel2@gmail.com"
     SENHA = "180725"
