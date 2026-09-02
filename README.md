@@ -1,3 +1,4 @@
+# Projeto Consolidado: Este bot foi integrado à Central de Automações RPA. O desenvolvimento ativo continua por lá.
 
 #  Asset Management System — Controle de Patrimônio e Equipamentos de TI
 
